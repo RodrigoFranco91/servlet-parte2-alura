@@ -1,0 +1,108 @@
+Neste capítulo vamos começar a preparar o cenário de Login. Vamos criar o formulário do Login.
+
+
+Alungs conceitos precisam ficar claros:
+Autenticação = é verificar se a pessoa é de fato quem ela diz ser e para isso a pessoa informa seus dados, pode ser login e senha.
+Validação = é definir o que cada pessoa ou tipo (grupo) de pessoa pode fazer.
+
+O primeiro passo para fazer esse cenário é criar a classe Usuario que vai ter os dados de usuario:
+
+	public class Usuario {
+
+	    private String login;
+	    private String senha;
+
+	    public String getLogin() {
+		return login;
+	    }
+
+	    public void setLogin(String login) {
+		this.login = login;
+	    }
+
+	    public String getSenha() {
+		return senha;
+	    }
+
+	    public void setSenha(String senha) {
+		this.senha = senha;
+	    }
+
+	    public boolean ehIgual(String login, String senha) {
+		if(!this.login.equals(login)) {
+		    return false;
+		}
+
+		if(!this.senha.equals(senha)) {
+		    return false;
+		}
+
+		return true;
+	    }
+	}
+	
+	
+Não estamos usando um banco de dados oficial. Estamos salvando em memoria (lista) em uma classe chamada Banco. 
+A classe banco ganhou o atributo listaUsuarios e no bloco static{} adicionamos dois usuarios nesta lista, veja o codigo:
+
+	private static List<Usuario> listaUsuarios = new ArrayList<Usuario>();
+	
+		static {
+		
+		Usuario u1 = new Usuario();
+		u1.setLogin("nico");
+		u1.setSenha("12345");
+		Usuario u2 = new Usuario();
+		u2.setLogin("ana");
+		u2.setSenha("12345");
+		listaUsuarios.add(u1);
+		listaUsuarios.add(u2);
+	}
+	
+	
+Na pasta view vamos criar a JSP formLogin.jsp, nesta JSP há o formulário para o usuário digitar seu login e senha.
+
+Vamos criar uma ação agora para exibir a JSP formLogin.jsp. Então criamos a classe LoginForm e está implementará Acao. VEja:
+
+	public class LoginForm implements Acao{
+
+		@Override
+		public String executa(HttpServletRequest request, HttpServletResponse response)
+				throws ServletException, IOException {
+
+			
+			return "forward:formLogin.jsp";
+		}
+
+	}
+	
+Temos agora que criar a classe responsável pela ação de fazer o login, ou seja, que vai receber os dados que o usuário digitar.
+Chamamos essa classe de Login e esta deve implementar Acao. Nesta classe vamos verificar se existe um usuário com os dados 
+informados. Veja como ficará:
+
+	public class Login implements Acao{
+
+		@Override
+		public String executa(HttpServletRequest request, HttpServletResponse response)
+				throws ServletException, IOException {
+			
+			String login = request.getParameter("login");
+			String senha = request.getParameter("senha");
+			
+			Banco banco = new Banco();
+			Usuario usuario = banco.existeUsuario(login, senha);
+			
+			if(usuario != null) {
+				//Se login funcionar vamos para:
+				return "redirect:entrada?acao=ListaEmpresas";
+			}else {
+				return "redirect:entrada?acao=LoginForm";
+			}
+			
+
+		}
+
+	}
+	
+
+No proximo capitulos vamos tornar o Login obrigatório e entender o HttpSession!

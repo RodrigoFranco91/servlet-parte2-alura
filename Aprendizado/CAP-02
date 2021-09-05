@@ -1,0 +1,179 @@
+Neste capítulo demos continuidade na organização do código.
+
+
+O objetivo agora é fazer o servlet UnicaEntradaServlet (nossa única Servlet - Controladora) retornar uma JSP quando necessário! Pois
+quem está fazendo isso por enquanto é a classe que tem o método executa(). Na prática queremos tirar o código (código da classe
+ListaEmpresas):
+
+	RequestDispatcher rd = request.getRequestDispatcher("/listaEmpresas.jsp");
+	rd.forward(request, response);
+	
+E levar esse código para a classe UnicaEntradaServlet.
+
+
+Para fazer esse fluxo funcionar todo método executa() vai retonrar uma String, que será o nome da JSP ou da nova ação que deseja
+executar (antes era o nome da Servlet). Mas como a classe UnicaEntradaServlet vai saber se é para usar Dispatcher (quando enviamos
+para JSP ou SendRedirect (quando enviamos para outra ação)? Simples, na string de retorno do metodo executa() vai ter a palavra
+forward para quando for Dispatcher e Redirect quando for SendRedirect, desta forma basta fazer um IF() e ver qual usar.
+
+Como agora o metodo executa() retorna uma String, vamos pegar esse valor em cada chamada de executa().
+
+Veja o exemplo de como ficará a classe LIstaEmpresa  (com retorno no metodo executa()):
+
+	public class ListaEmpresas {
+		
+		public String executa(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+			
+			Banco banco = new Banco();
+			List<Empresa> lista = banco.getEmpresas();
+			
+			request.setAttribute("empresas", lista);
+			
+			return "forward:listaEmpresas.jsp";
+					
+		}
+
+	}
+	
+E a classe UnicaEntradaServlet ficará assim:
+
+	@WebServlet("/entrada")
+	public class UnicaEntradaServlet extends HttpServlet {
+		private static final long serialVersionUID = 1L;
+	       
+
+		protected void service(HttpServletRequest request,HttpServletResponse response) throws ServletException, IOException {
+
+			//Pegando o valor de acao, que é valor passado lá na url.
+			String paramAcao = request.getParameter("acao");
+			
+			//Vai pegar o nome da jsp que a ação devolveu.
+			String nome = null;
+			
+			if(paramAcao.equals("AlteraEmpresa")) {
+				AlteraEmpresa acao = new AlteraEmpresa();
+				nome = acao.executa(request, response);
+			}else if(paramAcao.equals("ListaEmpresas")) {
+				ListaEmpresas acao = new ListaEmpresas();
+				nome = acao.executa(request, response);
+			}else if(paramAcao.equals("MostraEmpresa")) {
+				MostraEmpresa acao = new MostraEmpresa();
+				nome = acao.executa(request, response);
+			}else if(paramAcao.equals("NovaEmpresa")) {
+				NovaEmpresa acao = new NovaEmpresa();
+				nome = acao.executa(request, response);
+			}else if(paramAcao.equals("OiMundo")) {
+				OiMundo acao = new OiMundo();
+				acao.executa(request, response);
+			}else if(paramAcao.equals("RemoveEmpresa")){
+				RemoveEmpresa acao = new RemoveEmpresa();
+				nome = acao.executa(request, response);
+			}
+			
+			String[] tipoEEndereco = nome.split(":");
+			
+			if(tipoEEndereco[0].equals("forward")) {
+				RequestDispatcher rd = request.getRequestDispatcher(tipoEEndereco[1]);
+				rd.forward(request, response);
+			}else {
+				response.sendRedirect(tipoEEndereco[1]);
+			}
+
+		}	
+	}
+	
+	
+	
+	
+Agora vamos melhorar as nossas JSP's, pois é boa pratica nunca chamar uma JSP diretamente, mas até agora é possivel chamar qualquer 
+JSP, basta digitar localhost:8080/gerenciador/NomeDaJSP.jsp. Vamos esconder a JSP para isso não ser possível!
+
+Para implementar isso, basta colocar as JSP dentro da pasta WEB-INF, mas para manter a organização vamos criar dentro da pasta 
+WEB-INF a pasta view e dentro desta colocar todas JSP. Ao fazer isso na classe UnicaEntradaServlet no método, no trecho que que faz
+um Dispatcher teremos que colocar: WEB-INF/view/, ficando asim: 
+
+	RequestDispatcher rd = request.getRequestDispatcher("WEB-INF/view/" + tipoEEndereco[1]);
+	
+Lembra que para cadastrar uma empresa, estavamos chamando a JSP diretamente, agora teremos que fazer uma acao para retornar a JSP, 
+ou seja, criamos a classe NovaEmpresaForm que terá o metodo executa()
+
+
+Ainda prodemos melhorar mais a nossa classe UnicaEntradaServlet, pois ela está cheio de if/if-else e a cada classe de ação criada
+temos que criar mais um IF. Como podemos resolver isso? (Dica, usamos o nome da classe como o parametro do String e isso vai
+facilitar nossa vida)
+
+Para resolver isso vamos instanciar um objeto da classe/tipo da ação, pois como foi dito a ação é ListaEmpresas e temos uma
+classe chamada ListaEmpresa!!! O problema é que quando criamos um objeto de uma classe criada via String (seu nome) o objeto é 
+do tipo Object, ou seja, temos que fazer Cast e para facilitar esse Cast fizemos toda classe de aco implementar a interface Acao,
+assim poderemos fazer o Cast pro tipo Acao. Veja como ficou uma classe de açao, a inteface Acao e a classe UnicaEntradaServlet:
+
+
+	public class ListaEmpresas implements Acao {
+		
+		public String executa(HttpServletRequest request,HttpServletResponse response) throws ServletException, IOException {
+			
+			Banco banco = new Banco();
+			List<Empresa> lista = banco.getEmpresas();
+			
+			request.setAttribute("empresas", lista);
+			
+			return "forward:listaEmpresas.jsp";
+					
+		}
+
+
+	public interface Acao {
+		
+		public String executa(HttpServletRequest request, HttpServletResponse response) throws ServletException, 			IOException ;
+
+	}
+	
+	
+	@WebServlet("/entrada")
+	public class UnicaEntradaServlet extends HttpServlet {
+		private static final long serialVersionUID = 1L;
+	       
+
+		protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, 			IOException {
+
+			//Pegando o valor de acao, que é valor passado lá na url.
+			String paramAcao = request.getParameter("acao");
+			
+			//A acao mais o pacote vai ser o nome completo da classe de acao a ser chamada
+			String nomeDaClasse = "br.com.alura.gerenciador.acao" + paramAcao;
+			
+			//Variavel que vai ter o retorno da acao (será uma jsp ou outra acao)
+			String nome;
+			try {
+				//Carrega a classe ataves do seu nome
+				Class classe = Class.forName(nomeDaClasse);
+				
+				//Cria uma nova instancia a partir de Class
+				Object obj = classe.newInstance();
+				
+				//Vamos fazer a referencia obj ser do tipo Acao (interface que todas classes de açao implementam)
+				Acao acao = (Acao) obj;
+				
+				//Executando acao da classe correta!
+				nome = acao.executa(request, response);
+			} catch (ClassNotFoundException | InstantiationException | IllegalAccessException | ServletException
+					| IOException e) {
+				throw new ServletException(e);
+			}
+			
+			String[] tipoEEndereco = nome.split(":");
+			
+			if(tipoEEndereco[0].equals("forward")) {
+				RequestDispatcher rd = request.getRequestDispatcher(tipoEEndereco[1]);
+				rd.forward(request, response);
+			}else {
+				response.sendRedirect(tipoEEndereco[1]);
+			}
+					
+		}
+		
+	}
+	
+Lembre-se que todo classe que representa novas ações devem ficar no mesmo pacote e devem implementar a interface Acao().
+
+		

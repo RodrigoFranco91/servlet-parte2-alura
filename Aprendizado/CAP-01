@@ -1,0 +1,119 @@
+Neste capítulo organizamos o projeto:
+
+
+1) Criamos o pacote modelo e colocamos nele as classes de négocio, por exemplo: Banco e Empresa;
+
+
+2) Criamos um Servlet responsável por receber todas requisiçoes e ele irá decidir qual Servlet será chamado. Do jeito atual há
+diversas entradas no nosso projeto (qualquer Servlet pode ser chamada diretamente). Esse Servlet central será o Controlador.
+A função do controlador é receber as requisições e delegar as chamadas para as ações correspondentes. Para implmentá-lo siga os passos:
+
+Criei a Servlet chamada UnicaEntradaServlet, depois vamos trocar o nome. Mapeamos essa Servlet para: /entrada. Para mapear uma
+Servlet usamos a anotação: @WebServlet("/entrada")
+
+Essa servlet entrada terá que receber um atributo (através da request) chamado ação e através do valor de ação poderemos descobrir
+qual Servlet chamar. Agora poderemos usar o endpoint: localhost:8080/entrada?acao=ListaEmpresas
+
+Devemos criar uma classe Java comum (não servlet), para cada ação disponível em nosso projeto. Vou aqui exemplificar a classe
+ListaEmpresas e esse terá um método chamado executa() e esse método terá que ter como argumento Request e Response. Tenha em mente
+que vamos ter apenas uma Servlet em nosso projeto (Controladora) e essa controladora saberá através do valor de ação (atributo que 
+veio na requisição) chamar a classe Java responsável por executar sua ação.
+
+	Classe ListaEmpresas:
+	
+		public class ListaEmpresas {
+			
+			public void executa(HttpServletRequest request, HttpServletResponse response) throws ServletException, 				IOException {
+				
+				Banco banco = new Banco();
+				List<Empresa> lista = banco.getEmpresas();
+				
+				request.setAttribute("empresas", lista);
+				
+				RequestDispatcher rd = request.getRequestDispatcher("/listaEmpresas.jsp");
+				rd.forward(request, response);
+				
+			}
+
+		}
+		
+		
+	Classe UnicaEntradaServlet (Servlet Controlladora):
+	
+		@WebServlet("/entrada")
+		public class UnicaEntradaServlet extends HttpServlet {
+		private static final long serialVersionUID = 1L;
+	       
+
+		protected void service(HttpServletRequest request,HttpServletResponse response) throws ServletException, IOException {
+
+			//Pegando o valor de acao, que é valor passado lá na url.
+			String paramAcao = request.getParameter("acao");
+			if(paramAcao.equals("AlteraEmpresa")) {
+				AlteraEmpresa acao = new AlteraEmpresa();
+				acao.executa(request, response);
+			}else if(paramAcao.equals("ListaEmpresas")) {
+				ListaEmpresas acao = new ListaEmpresas();
+				acao.executa(request, response);
+			}else if(paramAcao.equals("MostraEmpresa")) {
+				MostraEmpresa acao = new MostraEmpresa();
+				acao.executa(request, response);
+			}else if(paramAcao.equals("NovaEmpresa")) {
+				NovaEmpresa acao = new NovaEmpresa();
+				acao.executa(request, response);
+			}else if(paramAcao.equals("OiMundo")) {
+				OiMundo acao = new OiMundo();
+				acao.executa(request, response);
+			}else if(paramAcao.equals("RemoveEmpresa")){
+				RemoveEmpresa acao = new RemoveEmpresa();
+				acao.executa(request, response);
+			}
+			
+		}
+		
+	}
+	
+Com isso feito, podemos acessar a URL: http://localhost:8080/gerenciador/entrada?acao=ListaEmpresas essa requisição vai bater na
+UnicaEntradaServlet, onde será pego o valor do atributo acao e através dele vai ser chamado a classe ListaEmpresas.
+
+Agora temos que alterar os links (caminhos) na listagem de empresa (será feito no arquivo JSP), pois eles estão chamando a servlet 
+diretamente, vamos fazer eles chamarem a UnicaEntradaServlet também. Ficando assim:
+
+	<a href="/gerenciador/entrada?acao=MostraEmpresa&id=${empresa.id }">edita</a>
+	<a href="/gerenciador/removeEmpresa?acao=RemoveEmpresa&id=${empresa.id }">remove</a>
+	
+Esse fluxo vai funcionar, pois a requisição continua sendo a mesma, ou seja, vai ter ainda o id da empresa que queremos alterar ou
+deletar.
+
+Devemos alterar o retorno das classes que possem método acao(), pois elas estão retornando o Servlet diretamente! Veja por exemplo
+a clase RemoveEmpresa:
+
+	public class RemoveEmpresa {
+
+		
+		public void executa(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+			
+			String paramId = request.getParameter("id");
+			Integer id = Integer.valueOf(paramId);
+			
+			System.out.println(id);
+			
+			Banco banco = new Banco();
+			banco.removeEmpresa(id);
+			
+			response.sendRedirect("entrada?acao=ListaEmpresa");
+				
+			}
+	}
+		
+Na JSP de alterar empresa (formAlteraEmpresa) no form vamos ter que adicionar o atributo de acao, veja:
+
+	<input type="hidden" name="acao" value="AlteraEmpresa">	
+	
+Na JSP de cadastrar empresa (formNovaEmpresa) no form vamos ter que adicionar o atributo de acao, veja:
+
+	<input type="hidden" name="acao" value="NovaEmpresa" />
+				
+				
+				
+				

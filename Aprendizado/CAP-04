@@ -1,0 +1,121 @@
+Neste capítulo vamos tornar o Login obrigátorio, ou seja, somente usuário logado vai poder ver determinadas páginas. Vamos falar
+também de HttpSession.
+
+
+Para eu poder autorizar um usuário eu tenho que lembrar que o mesmo ja fez Login! E para isso devemos guardar o usuário logado na 
+sessão que chamamos de HttpSession. É comum pensarmos que poderiamos guardar na Requisição o usuário logado, mas isso não funciona,
+pois desta forma ao criar uma nova requisição o usuário logado será perdido, já salvando na sessão não será perdido. 
+
+Cada usuário guardado na Session recebe um identificador, que chamamos de SESSION-ID ou JSESSIONID. Tenha em mente que a primeira 
+requisição que um navegador faz já tem um identificador e a sessão já é criada e que nas pŕoximas requisições há somente o envio desse 
+identificado. O que  vamos fazer é colocar o usuário na Sessão, pois isso não acontece automaticamente. Veja como ficou:
+
+	public class Login implements Acao{
+
+		@Override
+		public String executa(HttpServletRequest request, HttpServletResponse response)
+				throws ServletException, IOException {
+			
+			String login = request.getParameter("login");
+			String senha = request.getParameter("senha");
+			
+			Banco banco = new Banco();
+			Usuario usuario = banco.existeUsuario(login, senha);
+			
+			if(usuario != null) {
+				
+				//Pegando a sessão
+				HttpSession sessao = request.getSession();
+				
+				//Colocar o usuario logado na sessão
+				sessao.setAttribute("usuarioLogado", usuario);
+				
+				//Se login funcionar vamos para:
+				return "redirect:entrada?acao=ListaEmpresas";
+			}else {
+				return "redirect:entrada?acao=LoginForm";
+			}
+			
+
+		}
+
+	}
+	
+Agora na JSP listaEmpresas que é chamada após return "redirect:entrada?acao=ListaEmpresas"; podemos exibir o usuario logado com 
+o trecho:
+
+	<h1> Usuario Logado: ${usuarioLogado.login}</h1>
+	
+	Isso funciona, pois será procurado na requisição um item chamado usuarioLogado e não vai ter, o próximo passo é procurar esse
+	item na sessão e vai ter!
+	
+Na classe ListaEmpresa, dentro do método executa colocamos o trecho para verificar se há um usuário logado (se há usuário na sessão):
+
+		HttpSession sessao = request.getSession();
+		if(sessao.getAttribute("usuarioLogado") == null ) {
+			return "redirect:entrada?acao=LoginForm";
+		}
+	
+
+Do jeito que está o usuário consegue fazer login e se for bem sucedido ele é enviado para página que lista as empresas. 
+E somente na ação de ListaEmpresa que há verificação se há usuário logado! Verificação feita pelo trecho de código anterior.
+As outras páginas (ações) podem ser chamadas sem que o usuário faça login. Vamos resolver isso.  Poderiamos colocar o trecho de 
+código anterior em todas as classes de ação, mas a melhor solução para esse problema é colocar isso na única entrada que temos do 
+nosso sistema, que é a classe UnicaEntradaServlet.
+
+A classe UnicaEntradaServlet ganhou o trecho:
+
+		//Pegando o valor de acao, que é valor passado lá na url.
+		String paramAcao = request.getParameter("acao");
+		
+		HttpSession sessao = request.getSession();
+		boolean usuarioNaoEstaLogado = sessao.getAttribute("usuarioLogado") == null;
+		
+		//Liberando as páginas de login para usuario não logado se logar!
+		boolean ehUmaAcaoProtegida = !(paramAcao.equals("Login") || paramAcao.equals("LoginForm"));
+		if(ehUmaAcaoProtegida && usuarioNaoEstaLogado) {
+			response.sendRedirect("entrada?acao=LoginForm");
+			//Força a saída, pois tem mais código a seguir! Se não colcoar teremos erro!
+			return;
+		}
+		
+		
+Vamos criar agora a funcionalidade de Logout! E logout é uma ação, logo vamos criar a classe Logout e fazer ela implementar a
+interface Acao. A classe ficará assim:
+
+	public class Logout implements Acao{
+
+		@Override
+		public String executa(HttpServletRequest request, HttpServletResponse response)
+				throws ServletException, IOException {
+
+			HttpSession sessao = request.getSession();
+			
+			//Podemos usar o metodo que remove o atributo usuarioLogado
+			//sessao.removeAttribute("usuarioLogado");
+			
+			//Ou podemos destruir o cookie:
+			sessao.invalidate();
+			
+			return "redirect:entrada?acao=LoginForm";
+		}
+
+	}
+
+	
+No arquivo listaEmpresas.jsp vamos adicionar um link para logout, ficando assim:
+
+	<a href="entrada?acao=Logout">Sair</a>
+	
+O trecho anterior (link para logout) deve ser colocado em toda JSP, ou seja, basta copiar e colar! Mas seguindo a boa pratica, 
+podemos criar uma JSP apenas com esse link e importar esse JSP nas outras JSP's. Veja como ficará:
+Para isso criei o arquivo logout-parcial.jsp e adicionei:
+
+	<a href="entrada?acao=Logout">Sair</a>
+	<br>
+	<br>
+	<br>
+	
+Agora nas demais JSP adicionei:
+
+	 <c:import url="logout-parcial.jsp"></c:import>

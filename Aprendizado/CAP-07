@@ -1,0 +1,51 @@
+Neste capitulo fizemos o Deploy da aplicação no Jetty!
+
+Deploy é disponibilizar nossa aplicação no Servidor, e neste caso será o servidor Jetty!
+
+Tenha em mente que Jetty e Tomcat que já usamos não é um Servidor, na verdade eles são Servlet Container, conhecidos também como 
+Servlet Engine. Um Servlet Container é um servidor com menos recursos, na verdade ele apenas mapeia um objeto (nossa servlet do java) 
+para tratar uma requisição.
+
+Há também, os Application Server (Servidores de Java EE) como: Wildfly, Weblogic, Websphere. Nesses sevidores além de fazer o que o 
+Servlet Container faz eles também fazem muitas outras coisas como: gera json, gera xml, trabalham com banco de dados, gerenciam 
+transação, etc...
+
+
+Siga o passo a passo para fazer o deploy de nossa aplicação:
+
+1) Para nossa aplicação funcionar no Jetty teremos que atualizar nossos filtros, eles precisam ter os métodos destroy() e init(),
+veja:
+
+	@Override
+	public void destroy() {
+		// TODO Auto-generated method stub
+		Filter.super.destroy();
+	}
+	
+	@Override
+	public void init(FilterConfig filterConfig) throws ServletException {
+		// TODO Auto-generated method stub
+		Filter.super.init(filterConfig);
+	}
+	
+2) Agora vamos gerar o WAR de nossa aplicação, para isso clique com botão direito no projeto -> export -> War file. Agora já temos
+o WAR e vamos colocar essa aplicação dentro do servidor Jetty.
+
+3) Agora devemos pegar o arquivo WAR e colocar dentro da pasta webapps do servidor Jetty.
+
+4) Agora devemos subir/rodar o Jetty e para isso basta entrar na pasta do servidor e rodar o comando:
+	
+	java -jar start.jar
+	
+	
+	
+Entendendo a Especificação Servlet!
+
+Como é possivel o mesmo projeto rodar no Tomcat e no Jetty? O motivo é que ambos implementam a mesma interface/especificação, no caso
+a especificação Servlet! A especificação é um tipo de contrato que exige que quem for implementar deve seguir aquele contrato, ou seja,
+a implementação (como fazer) até pode mudar de um servidor para outro, mas as necessidades (requisistos funcionais) são os mesmos para 
+todas as implementações! 
+
+Uma prova que Tomcat implementa essa especificação é que dentro do servidor (pasta lib) há um JAR como nome de Servlet! Ao retirarmos 
+esse JAR as anotações presentes na classe Servlet (e outras anotações deste contexto) vão parar de funcionar, na verdade o projeto 
+passa a não reconhecer aquela anotação!

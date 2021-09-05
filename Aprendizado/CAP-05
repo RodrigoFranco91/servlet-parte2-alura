@@ -1,0 +1,111 @@
+Neste capítulo vamos falar sobre Filtros!
+
+
+Podemos melhorar a maneira que verificamos se existe um usuário logado. Atualmente isso está sendo feito na única entrada de nossa
+aplicação que é em UnicaEntradaServie e o problema disso é que está classe está fazendo coisas de cenários diferentes!
+A maneira de melhorar isso é com Filtros!
+
+Outro cenários que devemos usar filtro: Imgina que nosso chefe ou cliente reclama que nossa aplicação está lenta, poderiamos medir
+o tempo de cada ação que há em nossa aplicação, mas dessa forma vamos ter que colocar o mesmo código em toda classe de ação! Se usarmos
+filtro não precisamos replicar o código, pois toda requisição passará por esse filtro! (Você deve estar pensando que poderiamos 
+colocar isso na servlert UnicaEntradaServlet, mas daí essa classe estaria fazendo coisas de contextos diferentes!)
+
+
+Criando um filtro para medir o tempo de execução de uma ação. No pacote Servlet vamos criar a classe MonitoramentoFilter que deve
+implementar a interface Filter (javax.servlet). Veja como ficou:
+
+	//Toda requisiçao com path /entrada vai passar neste filtro.
+	@WebFilter("/entrada")
+	public class MonitoramentoFilter implements Filter{
+
+		@Override
+		public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+				throws IOException, ServletException {
+
+			//Antes de toda requisição vamos pegar o tempo1
+			long antes = System.currentTimeMillis();
+			
+			String acao = request.getParameter("acao");
+			
+			//Aqui quero que continue a execução da requisição...
+			chain.doFilter(request, response);
+			
+			//Após a execução da requisicao pego o tempo2
+			long depois = System.currentTimeMillis();
+			
+			System.out.println("Tempo de execução de " + acao + " : " + (depois - antes));	
+			
+		}
+
+	}
+	
+	
+	
+Criando um filtro para autorização (vai verificar se existe um usuário logado):
+Criamos no pacote servlet a classe AutorizacaoFilter que deve implementar a interface Filter (javax.servlet). Veja como ficou:
+
+	@WebFilter("/entrada")
+	public class AutorizacaoFilter implements Filter {
+
+		public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain chain)
+				throws IOException, ServletException {
+
+			// Temos que fazer o Cast, pois em filtro recebemos request e response do tipo
+			// ServletRequest (mais generico)
+			// E há coisas, como sessão somente em HttpServletRequest
+			HttpServletRequest request = (HttpServletRequest) servletRequest;
+			HttpServletResponse response = (HttpServletResponse) servletResponse;
+
+			String paramAcao = request.getParameter("acao");
+
+			HttpSession sessao = request.getSession();
+			boolean usuarioNaoEstaLogado = sessao.getAttribute("usuarioLogado") == null;
+
+			// Liberando as páginas de login para usuario não logado se logar!
+			boolean ehUmaAcaoProtegida = !(paramAcao.equals("Login") || paramAcao.equals("LoginForm"));
+			if (ehUmaAcaoProtegida && usuarioNaoEstaLogado) {
+				response.sendRedirect("entrada?acao=LoginForm");
+				// Força a saída, pois tem mais código a seguir! Se não colcoar teremos erro!
+				return;
+			}
+
+			chain.doFilter(request, response);
+		}
+	}
+	
+
+Agora temos dois filtros funcionando em nossa aplicação. Qual dos dois dois é executado primeiro? Não tem como garantir! Agora se
+mapeassemos um filtro através de XML e não com anotações, poderiamos garantir a ordem de execução.
+
+
+Vamos mapear filtros através do XML. Para isso siga os passos:
+
+1) Vamos no arquivo web.xml
+2) Criando o filtro de monitoramento:
+
+	<filter>
+		<filter-name>MF</filter-name>
+		<filter-class>br.com.alura.gerenciador.servlet.MonitoramentoFilter</filter-class>
+	</filter>
+
+	<filter-mapping>
+		<filter-name>MF</filter-name>
+		<url-pattern>/entrada</url-pattern>
+	</filter-mapping>
+	
+3) Criando o filtro de autrozicao:
+
+	<filter>
+		<filter-name>AF</filter-name>
+		<filter-class>br.com.alura.gerenciador.servlet.AutorizacaoFilter</filter-class>
+	</filter>
+
+	<filter-mapping>
+		<filter-name>AF</filter-name>
+		<url-pattern>/entrada</url-pattern>
+	</filter-mapping>
+	
+Agora a ordem de definição dos filtros vai definir a ordem de execução.
+
+
+Seria uma boa prática transformar a nossa classe/servlet UnicaEntradaServlet em um filtro! (Ele não usaria o chain!)

@@ -1,0 +1,115 @@
+Neste capitulo falamos sobre Web Services:
+
+Neste nosso exemplo extamos retornando sempre uma página HTML, mas as vezes vamos querer devolver apenas os 
+dados, pois alguns clientes podem não saber lidar/ler HTML, e quando queremos retornar somente os dados podemos usar o JSON ou o XML
+para representar os dados! E tem outro cenário, que é quando o cliente entende HTML, mas ele vai ser o responsável por renderizar 
+a página (ele vai carregar a página completa), nesse caso o cliente está usando Angular, React ou Vue e assim nossa aplicação só 
+precisa/pode retonrar os dados!
+
+Então o que é Web Service? É um serviço consumido através do protocolo HTTP (por exemplo Servlet) e que devolve dados no formato XML ou
+JSON.
+
+
+Vamos agora usar algumas bibliotecas para criar nossos Web Service, basta colocar na pasta WEB-INF/lib os JAR's das bibilotecas.
+Usaremos a biblioteca GSON para trabalhar com JSON e a biblioteca XStream para trabalhar com XML.
+
+Agora vamos criar um Servlet para Web Service (poderiamos usar a UnicaEntradaServlet, mas ela retorna um JSP, teriamos que mudá-la
+para poder retornar ambos, daria mais trabalho e ná pratica usaremos algum framework para isso..). 
+
+A servlet se chamou: EmpresasServices e vai retornar dados em JSON. Veja seu conteudo:
+
+	@WebServlet("/empresas" )
+	public class EmpresasService extends HttpServlet {
+		private static final long serialVersionUID = 1L;
+
+
+		protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		
+		List<Empresa> empresas = new Banco().getEmpresas();
+		
+		//Agora temos que transformar os dados da empresa em JSON
+		Gson gson = new Gson();
+		String json = gson.toJson(empresas);
+		
+		//Definindo o tipo de conteudo a ser devolvido
+		response.setContentType("application/json");
+		//Retornando o JSON para o cliente
+		response.getWriter().print(json);
+		}
+
+	}
+	
+
+A servlet se chamou: EmpresasServices2 e vai retornar dados em XML. Veja seu conteudo:
+
+	@WebServlet("/empresas2" )
+	public class EmpresasService extends HttpServlet {
+		private static final long serialVersionUID = 1L;
+
+
+		protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		
+		List<Empresa> empresas = new Banco().getEmpresas();
+		
+		//Agora temos que transformar os dados da empresa em XML
+		XStream xstream = new XStream();
+		//Definindo que quando encontrar um objeto do tipo empresa chamá-lo de empresa 
+		//Nos atributos ele mantem o nome de atributo, neste caso como temos uma lista de empresa ele não saberia nomear
+		xstream.alias("empresa", Empresa.class);
+	 	String xml = xstream.toXML(empresas);
+		
+		//Definindo o tipo de conteudo a ser devolvido
+		response.setContentType("application/xml");
+		//Retornando o JSON para o cliente
+		response.getWriter().print(xml);
+		}
+
+	}
+	
+Obs: Poderiamos ter feito tudo em uma só classe, e através de um parâmetro informado pelo cliente definir que devolveriamos XML ou
+JSON.
+
+
+Vamos criar agora um novo projeto Java (padrão) que se chamará cliente-webservice. Esse projeto consumirá o nosso primeiro projeto,
+no caso o gerenciador. Neste novo projeto vamso ter que fazer uma requisição HTTP, no java há classes que faz isso, mas há 
+bibliotecas que facilita esse serviço, no caso vamos usar a biblioteca da apache chamada HttpClient.
+
+Como se trata de um projeto normal, ainda não temos a pasta lib, então devemos criar a pasta lib e adicionar nela os 4 JAR's da 
+biblioteca HttpClient, apos isso devemos clicar com botão direito nos JAR's e adicionar no build path!
+
+Criamos a classe ClienteWebService e o método main(). Veja como vai ficar a implementação para fazer a requisição:
+
+	public class ClienteWebService {
+		
+		public static void main(String[] args) throws ClientProtocolException, IOException {
+			
+			String resposta = Request.Post("http://localhost:8080/gerenciador/empresas")
+			.execute()
+			.returnContent()
+			.asString();
+			
+		System.out.println(resposta);
+		}
+
+	}
+	
+Lembra que falei que poderiamos ter um web-service retornando XML e JSON ao mesmo tempo (uma classe só) e que o cliente escolheria?
+Se for para fazer assim o código de requisição seria esse:
+
+		
+		String resposta = Request.Post("http://localhost:8080/gerenciador/empresas")
+		.addHeader("accept", "application/json")
+		.execute()
+		.returnContent()
+		.asString();
+		
+	Veja que o .addHeader vai escolher que tipo de representação de dados vai obter!
+	
+A classe que envia os dados, no caso no projeto Gerenciador na classe EmpresaService deveriamos ler o cabeçalho da requisição, e o
+código que faz isso é:
+
+	String valor = request.getHeader("accept");
+	
+Tenha em mente que se fizessemos dessa forma a requisição do Navegador poderá não funcionar, pois por padrão navegador espera o 
+formato HTML, ou seja, no cabeçalho padrão do navegador é HTML e através do navegador não conseguimos mudar esse valor! Teriamos
+que usar o Postman ou outra aplicação que faz requisição HTTP e que deixa configurar os cabeçalhos!
